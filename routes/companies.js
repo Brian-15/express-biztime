@@ -2,6 +2,7 @@
 
 const db = require('../db');
 const express = require('express');
+const ExpressError = require('../expressError');
 const router = express.Router();
 
 router.get('/companies', async (req, res, next) => {
@@ -23,6 +24,8 @@ router.get('/companies/:code', async (req, res, next) => {
             `SELECT code, name, description
              FROM companies
              WHERE code = $1`, [req.params.code]);
+        
+        if (results.rows.length === 0) throw new ExpressError('Error: company not found.', 404);
         return res.json({company: results.rows[0]});
     }
 
@@ -34,12 +37,16 @@ router.get('/companies/:code', async (req, res, next) => {
 router.post('/companies', async (req, res, next) => {
     try {
         const { code, name, description } = req.body;
+        if (!code || !name || !description) {
+            throw new ExpressError('Error: Company must include code, name, and data.', 400);
+        }
 
         const results = await db.query(
                 `INSERT INTO companies(code, name, description)
                  VALUES ($1, $2, $3)
                  RETURNING code, name, description`,
             [code, name, description]);
+        
         
         return res.json({company: results.rows[0]});
     }
@@ -60,6 +67,8 @@ router.put('/companies/:code', async (req, res, next) => {
             [code, name, description, req.params.code]
         );
 
+        if (result.rows.length === 0) throw new ExpressError('Error: company not found.', 404);
+
         return res.json({ company: result.rows[0] })
     }
 
@@ -74,6 +83,8 @@ router.delete('/companies/:code', async (req, res, next) => {
             `DELETE FROM companies WHERE code = $1`,
             [req.params.code]
         );
+
+        if (result.rows.length === 0) throw new ExpressError('Error: company not found.', 404);
 
         return res.json({ message: 'Deleted' });
     }
